@@ -87,6 +87,12 @@ def collate_batch(
     max_padding=128,
     pad_id=2,
 ):
+    """
+    Batching matters a ton for speed. We want to have very evenly divided batches, with
+    absolutely minimal padding. To do this we have to hack a bit around the default
+    torchtext batching. This code patches their default batching to make sure we search
+    over enough sentences to find tight batches.
+    """
     bs_id = torch.tensor([0], device=device)  # <s> token id
     eos_id = torch.tensor([1], device=device)  # </s> token id
     src_list, tgt_list = [], []
