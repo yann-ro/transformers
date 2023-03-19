@@ -1,7 +1,8 @@
 import copy
 
 import torch.nn as nn
-from transformer import (
+
+from .transformer import (
     Decoder,
     DecoderLayer,
     Embeddings,

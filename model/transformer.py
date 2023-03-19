@@ -27,13 +27,19 @@ class EncoderDecoder(nn.Module):
 
     def forward(self, src, tgt, src_mask, tgt_mask):
         "Take in and process masked src and target sequences."
-        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
+        output = self.encode(src, src_mask)
+        output = self.decode(output, src_mask, tgt, tgt_mask)
+        return output
 
     def encode(self, src, src_mask):
-        return self.encoder(self.src_embed(src), src_mask)
+        output = self.src_embed(src)
+        output = self.encoder(output, src_mask)
+        return output
 
     def decode(self, memory, src_mask, tgt, tgt_mask):
-        return self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask)
+        output = self.tgt_embed(tgt)
+        output = self.decoder(output, memory, src_mask, tgt_mask)
+        return output
 
 
 class Generator(nn.Module):
@@ -44,7 +50,9 @@ class Generator(nn.Module):
         self.proj = nn.Linear(d_model, vocab)
 
     def forward(self, x):
-        return log_softmax(self.proj(x), dim=-1)
+        output = self.proj(x)
+        output = log_softmax(output, dim=-1)
+        return output
 
 
 class Encoder(nn.Module):
@@ -136,9 +144,8 @@ class DecoderLayer(nn.Module):
 
     def forward(self, x, memory, src_mask, tgt_mask):
         "Follow Figure 1 (right) for connections."
-        m = memory
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
+        x = self.sublayer[1](x, lambda x: self.src_attn(x, memory, memory, src_mask))
         return self.sublayer[2](x, self.feed_forward)
 
 
@@ -152,13 +159,13 @@ def subsequent_mask(size):
 def attention(query, key, value, mask=None, dropout=None):
     "Compute 'Scaled Dot Product Attention'"
     d_k = query.size(-1)
-    scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
         scores = scores.masked_fill(mask == 0, -1e9)
     p_attn = scores.softmax(dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
-    return torch.matmul(p_attn, value), p_attn
+    return p_attn @ value, p_attn
 
 
 class MultiHeadedAttention(nn.Module):
@@ -203,7 +210,10 @@ class PositionwiseFeedForward(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        return self.w_2(self.dropout(self.w_1(x).relu()))
+        output = self.w_1(x).relu()
+        output = self.dropout(output)
+        output = self.w_2(output)
+        return output
 
 
 class Embeddings(nn.Module):
